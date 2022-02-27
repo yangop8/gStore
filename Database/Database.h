@@ -45,6 +45,7 @@ public:
 	static const int STRING_MODE = 1;
 	static const int ID_MODE = 2;
 	CSR *csr;
+	sparqlWithPlan* sparql_struct;
 	Database();
 	Database(std::string _name);
 	void release(FILE* fp0);

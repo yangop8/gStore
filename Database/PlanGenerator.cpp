@@ -26,13 +26,15 @@
 
 const unsigned PlanGenerator::SAMPLE_CACHE_MAX = 50;
 
-PlanGenerator::PlanGenerator(KVstore *kvstore_, BGPQuery *bgpquery_, Statistics *statistics_, IDCachesSharePtr &id_caches_,
+PlanGenerator::PlanGenerator(KVstore *kvstore_, BGPQuery *bgpquery_, Statistics *statistics_, sparqlWithPlan *_sparql_struct, IDCachesSharePtr &id_caches_,
 							 TYPE_TRIPLE_NUM triples_num_, TYPE_PREDICATE_ID limitID_predicate_,
 							 TYPE_ENTITY_LITERAL_ID limitID_literal_, TYPE_ENTITY_LITERAL_ID limitID_entity_,
 							 TYPE_TRIPLE_NUM* pre2num_, TYPE_TRIPLE_NUM* pre2sub_, TYPE_TRIPLE_NUM* pre2obj_, shared_ptr<Transaction> txn_):
 					kvstore(kvstore_), bgpquery(bgpquery_), statistics(statistics_), id_caches(id_caches_), triples_num(triples_num_),
 					limitID_predicate(limitID_predicate_), limitID_literal(limitID_literal_), limitID_entity(limitID_entity_),
-					pre2num(pre2num_), pre2sub(pre2sub_), pre2obj(pre2obj_), txn(txn_){};
+					pre2num(pre2num_), pre2sub(pre2sub_), pre2obj(pre2obj_), txn(txn_){
+	this->sparql_struct = _sparql_struct;
+};
 
 PlanGenerator::~PlanGenerator() {
 	for(auto &map_plan_list : plan_cache){
@@ -1313,48 +1315,58 @@ void PlanGenerator::addsatellitenode(PlanTree* best_plan) {
 
 PlanTree *PlanGenerator::get_plan(bool use_binary_join) {
 
+	if(!sparql_struct || sparql_struct->node_degree.empty())
+		sparql_struct->flag_for_feed_plan = false;
+	else
+		sparql_struct->flag_for_feed_plan = true;
+
 	cout << "-------print var and id--------" << endl;
 	for(unsigned i = 0; i < bgpquery->var_vector.size(); ++i){
 		cout << "\t" << bgpquery->get_vardescrip_by_index(i)->var_name_ << "\t\t" << bgpquery->get_vardescrip_by_index(i)->id_ << endl;
 	}
 
+	PlanTree *best_plan;
+	if(!sparql_struct->flag_for_feed_plan) {
+		considervarscan();
 
-	considervarscan();
+		// cout << "print for var_to_num_map:" << endl;
+		// for(auto x:var_to_num_map)
+		// 	cout << x.first << "   " << x.second<<endl;
 
-	// cout << "print for var_to_num_map:" << endl;
-	// for(auto x:var_to_num_map)
-	// 	cout << x.first << "   " << x.second<<endl;
+		// should be var num not include satellite node
+		// should not include pre_var num
+		for (unsigned var_num = 2; var_num <= join_nodes.size(); ++var_num) {
 
-	// should be var num not include satellite node
-	// should not include pre_var num
-	for(unsigned var_num = 2; var_num <= join_nodes.size(); ++var_num) {
+			// if i want to complete this, i need to know whether the input query is linded or not
+			// answer: yes, input query is linked by var
+			considerwcojoin(var_num);
 
-		// if i want to complete this, i need to know whether the input query is linded or not
-		// answer: yes, input query is linked by var
-		considerwcojoin(var_num);
-
-		if(use_binary_join)
-			if(var_num >= 5)
-				considerbinaryjoin(var_num);
-	}
-
-	for(auto x:card_cache){
-		for(auto y:x){
-			for(auto z:y.first) cout << z << " ";
-			cout << "card: " << y.second << endl;
+			if (use_binary_join)
+				if (var_num >= 5)
+					considerbinaryjoin(var_num);
 		}
+
+		for (auto x: card_cache) {
+			for (auto y: x) {
+				for (auto z: y.first) cout << z << " ";
+				cout << "card: " << y.second << endl;
+			}
+		}
+
+		best_plan = get_best_plan_by_num(join_nodes.size());
+
+		// todo: 这个卫星点应该也有卫星谓词变量
+		// s ?p ?o. 在之前的计划中已经加入了?o, 则这一步也需要加入?p
+		addsatellitenode(best_plan);
+
+		cout << endl << endl;
+		print_plan_generator_info();
+		print_sample_info();
+		cout << endl << endl;
+		best_plan->plan_to_string(bgpquery, this->sparql_struct);
+	} else{
+		best_plan = new PlanTree(bgpquery, this->sparql_struct);
 	}
-
-	PlanTree* best_plan = get_best_plan_by_num(join_nodes.size());
-
-	// todo: 这个卫星点应该也有卫星谓词变量
-	// s ?p ?o. 在之前的计划中已经加入了?o, 则这一步也需要加入?p
-	addsatellitenode(best_plan);
-
-	cout << endl << endl;
-	print_plan_generator_info();
-	print_sample_info();
-	cout << endl << endl;
 
 
 	return best_plan;

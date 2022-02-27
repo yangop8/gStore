@@ -103,6 +103,8 @@ in the sparql query can point to the same node in data graph)
 #include <unordered_set>
 #include <random>
 #include <type_traits>
+#include <vector>
+#include <cstring>
 
 
 //Added for __gnu_parallel::sort
@@ -1237,5 +1239,25 @@ class MD5
             memset(x, 0, sizeof x);
         }
 };
+
+// feed this to database::query.
+// no matter flag_for_plan is true or false, the executor must execute one plan.
+// if flag_for_plan == true, then execute the plan feeded; else execute the plan generated
+struct sparqlWithPlan
+{
+	std::string sparql_query;
+	std::vector<std::string> varible_node;
+	std::vector<int> node_degree;
+	bool sampling;
+	double sampling_rate;
+	bool random_plan;
+
+	// need by plan_tree
+	std::vector<int> node_id;
+	bool flag_for_feed_plan; // true if feed on plan to execute, false to return one plan
+	long time; // may not used
+
+};
+
 #endif //_UTIL_UTIL_H
 

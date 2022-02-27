@@ -129,6 +129,13 @@ public:
 
     void print_tree_node(Tree_node* node, BGPQuery* bgpquery);
     void print(BGPQuery* bgpquery);
+
+	PlanTree* string_to_node(BGPQuery* bgpquery, vector<int> &node_id, vector<string> &node_string, vector<int> &degree);
+	PlanTree(BGPQuery* bgpquery, sparqlWithPlan *sparql_struct);
+	void node_to_string(BGPQuery* bgpquery, Tree_node *node, vector<int> &node_id, vector<string> &node_string, vector<int> &degree);
+	void plan_to_string(BGPQuery* bgpquery, sparqlWithPlan *sparql_struct);
+
+
 };
 
 

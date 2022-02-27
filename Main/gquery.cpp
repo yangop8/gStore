@@ -129,6 +129,7 @@ main(int argc, char * argv[])
 				string msg;
 				shared_ptr<Transaction> ptxn = make_shared<Transaction>(db_folder, 1, 1);
 				//cout << ptxn << endl;
+				sparqlWithPlan* sparql_struct = new sparqlWithPlan;
 				int ret = _db.query(query, _rs, ofp, true, false, nullptr);
 				if (resultfile.empty() == false)
 				{

@@ -9,6 +9,7 @@
 
 Optimizer::Optimizer(KVstore *kv_store,
                      Statistics *statistics,
+					 sparqlWithPlan *_sparql_struct,
                      TYPE_TRIPLE_NUM *pre2num,
                      TYPE_TRIPLE_NUM *pre2sub,
                      TYPE_TRIPLE_NUM *pre2obj,
@@ -21,7 +22,9 @@ Optimizer::Optimizer(KVstore *kv_store,
     kv_store_(kv_store), statistics(statistics), pre2num_(pre2num),
     pre2sub_(pre2obj),pre2obj_(pre2obj),triples_num_(triples_num),
     limitID_predicate_(limitID_predicate), limitID_literal_(limitID_literal),limitID_entity_(limitID_entity),
-    txn_(std::move(txn)), executor_(kv_store,txn,limitID_predicate,limitID_literal,limitID_entity_){}
+    txn_(std::move(txn)), executor_(kv_store,txn,limitID_predicate,limitID_literal,limitID_entity_){
+	this->sparql_struct = _sparql_struct;
+}
 
 BasicQueryStrategy Optimizer::ChooseStrategy(std::shared_ptr<BGPQuery> bgp_query,QueryInfo *query_info){
   if (!query_info->limit_)
@@ -276,7 +279,7 @@ tuple<bool, shared_ptr<IntermediateResult>> Optimizer::DoQuery(std::shared_ptr<B
   {
 
     PlanTree* best_plan_tree;
-	PlanGenerator plan_generator(kv_store_, bgp_query.get(), statistics, var_candidates_cache, triples_num_,
+	PlanGenerator plan_generator(kv_store_, bgp_query.get(), statistics, sparql_struct, var_candidates_cache, triples_num_,
 								 limitID_predicate_, limitID_literal_, limitID_entity_, pre2num_, pre2sub_, pre2obj_, txn_);
 
     long t1 =Util::get_cur_time();
@@ -374,7 +377,7 @@ tuple<bool, shared_ptr<IntermediateResult>> Optimizer::DoQuery(std::shared_ptr<B
   else if(strategy == BasicQueryStrategy::limitK)
   {
     PlanTree* best_plan_tree;
-	PlanGenerator plan_generator(kv_store_, bgp_query.get(), statistics, var_candidates_cache, triples_num_,
+	  PlanGenerator plan_generator(kv_store_, bgp_query.get(), statistics, sparql_struct, var_candidates_cache, triples_num_,
 								 limitID_predicate_, limitID_literal_, limitID_entity_, pre2num_, pre2sub_, pre2obj_, txn_);
 
 	long t1 =Util::get_cur_time();

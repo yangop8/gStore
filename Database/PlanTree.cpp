@@ -1165,3 +1165,73 @@ void PlanTree::print(BGPQuery* bgpquery) {
 	cout << "Plan: " << (bgpquery->distinct_query ? "distinct" : "not distinct") << endl;
 	print_tree_node(root_node, bgpquery);
 }
+
+
+PlanTree* PlanTree::string_to_node(BGPQuery* bgpquery, vector<int> &node_id, vector<string> &node_string, vector<int> &degree) {
+	stack<PlanTree*> st;
+	for(int i = 0; i < node_id.size(); ++i) {
+		if(degree[i] == 0){
+			vector<unsigned> a;
+			st.push(new PlanTree(node_id[i], bgpquery, vector<unsigned>(),
+								 nullptr, nullptr,
+								 a));
+		}else{
+			if(degree[i] == 2){
+				PlanTree* right = st.top();
+				st.pop();
+				PlanTree* left = st.top();
+				st.pop();
+				set<unsigned> join_nodes;
+				for(auto x:left->already_so_var){
+					if(std::find(right->already_so_var.begin(), right->already_so_var.end(), x) != right->already_so_var.end()){
+						join_nodes.insert(x);
+					}
+				}
+				st.push(new PlanTree(left, right, bgpquery, join_nodes));
+			}else{
+				PlanTree* left = st.top();
+				st.pop();
+				st.push(new PlanTree(left, bgpquery, node_id[i]));
+
+			}
+		}
+	}
+	return st.top();
+}
+
+PlanTree::PlanTree(BGPQuery* bgpquery, sparqlWithPlan *sparql_struct) {
+	vector<int> node_id = sparql_struct->node_id;
+	vector<int> degree = sparql_struct->node_degree;
+	vector<string> node_string = sparql_struct->varible_node;
+	root_node = new Tree_node((this->string_to_node(bgpquery, node_id, node_string, degree))->root_node);
+}
+
+
+void PlanTree::node_to_string(BGPQuery* bgpquery, Tree_node *node, vector<int> &node_id, vector<string> &node_string, vector<int> &degree) {
+	int deg = 0;
+	if(node->left_node){
+		node_to_string(bgpquery, node->left_node, node_id, node_string, degree);
+		++deg;
+	}
+	if(node->left_node){
+		node_to_string(bgpquery, node->right_node, node_id, node_string, degree);
+		++deg;
+	}
+	node_id.push_back(node->node->join_type_ == StepOperation::JoinType::JoinNode ?
+					  node->node->join_node_->node_to_join_ : -1);
+	node_string.push_back(node->node->join_type_ == StepOperation::JoinType::JoinNode ?
+						  bgpquery->get_var_name_by_id(node->node->join_node_->node_to_join_) : "___");
+
+	degree.push_back(deg);
+}
+
+void PlanTree::plan_to_string(BGPQuery* bgpquery, sparqlWithPlan *sparql_struct) {
+	vector<int> node_id = sparql_struct->node_id;
+	vector<int> degree = sparql_struct->node_degree;
+	vector<string> node_string = sparql_struct->varible_node;
+	node_to_string(bgpquery, this->root_node, node_id, node_string, degree);
+
+	// string plan_str = "";
+	// node_to_string(this->root_node, plan_str);
+	// return plan_str;
+}
