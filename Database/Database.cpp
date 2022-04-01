@@ -1741,7 +1741,8 @@ Database::export_db(FILE* fp)
 int
 Database::query(const string _query, ResultSet& _result_set, FILE* _fp, bool update_flag, bool export_flag, shared_ptr<Transaction> txn)
 {
-	string dictionary_store_path = this->store_path + "/dictionary.dc"; 	
+	string dictionary_store_path = this->store_path + "/dictionary.dc";
+	cout << "in database, query is " << endl << _query << endl;
 
 	this->stringindex->SetTrie(this->kvstore->getTrie());
 	GeneralEvaluation general_evaluation(this->kvstore, this->sparql_struct, this->statistics, this->stringindex, this->query_cache, \

@@ -336,6 +336,7 @@ JoinMethod PlanTree::get_join_strategy(BGPQuery *bgp_query, shared_ptr<VarDescri
 // ?s ?p ?o not consider
 // ?s p ?o not consider
 // ?s p o already done in candidate_generation
+// edge_info, edge_constant should not be nullptr, but a shared_ptr
 PlanTree::PlanTree(unsigned int first_node, BGPQuery *bgpquery, vector<unsigned> satellite_index,
 				   shared_ptr<vector<EdgeInfo>> edge_info, shared_ptr<vector<EdgeConstantInfo>> edge_constant_info,
 				   vector<unsigned> &nei_id_vec) {
@@ -376,7 +377,7 @@ PlanTree::PlanTree(unsigned int first_node, BGPQuery *bgpquery, vector<unsigned>
 
 	}
 
-	if(!edge_info->empty()){
+	if(edge_info != nullptr && !edge_info->empty()){
 		auto join_node = make_shared<FeedOneNode>(first_node, make_shared<vector<EdgeInfo>>(), make_shared<vector<EdgeConstantInfo>>());
 		root_node = new Tree_node(make_shared<StepOperation>(StepOperation::JoinType::JoinNode, join_node, nullptr, nullptr, nullptr, bgpquery->distinct_query));
 
@@ -1171,9 +1172,9 @@ PlanTree* PlanTree::string_to_node(BGPQuery* bgpquery, vector<int> &node_id, vec
 	stack<PlanTree*> st;
 	for(int i = 0; i < node_id.size(); ++i) {
 		if(degree[i] == 0){
-			vector<unsigned> a;
+			vector<unsigned> a{};
 			st.push(new PlanTree(node_id[i], bgpquery, vector<unsigned>(),
-								 nullptr, nullptr,
+								 make_shared<vector<EdgeInfo>>(), make_shared<vector<EdgeConstantInfo>>(),
 								 a));
 		}else{
 			if(degree[i] == 2){
@@ -1200,9 +1201,12 @@ PlanTree* PlanTree::string_to_node(BGPQuery* bgpquery, vector<int> &node_id, vec
 }
 
 PlanTree::PlanTree(BGPQuery* bgpquery, sparqlWithPlan *sparql_struct) {
-	vector<int> node_id = sparql_struct->node_id;
-	vector<int> degree = sparql_struct->node_degree;
-	vector<string> node_string = sparql_struct->varible_node;
+	vector<int> &node_id = sparql_struct->node_id;
+	vector<string> &node_string = sparql_struct->varible_node;
+	for(unsigned i = 0; i < sparql_struct->varible_node.size(); ++i){
+		node_id.emplace_back(bgpquery->get_var_id_by_name(node_string[i]));
+	}
+	vector<int> &degree = sparql_struct->node_degree;
 	root_node = new Tree_node((this->string_to_node(bgpquery, node_id, node_string, degree))->root_node);
 }
 
@@ -1213,22 +1217,22 @@ void PlanTree::node_to_string(BGPQuery* bgpquery, Tree_node *node, vector<int> &
 		node_to_string(bgpquery, node->left_node, node_id, node_string, degree);
 		++deg;
 	}
-	if(node->left_node){
+	if(node->right_node){
 		node_to_string(bgpquery, node->right_node, node_id, node_string, degree);
 		++deg;
 	}
 	node_id.push_back(node->node->join_type_ == StepOperation::JoinType::JoinNode ?
 					  node->node->join_node_->node_to_join_ : -1);
 	node_string.push_back(node->node->join_type_ == StepOperation::JoinType::JoinNode ?
-						  bgpquery->get_var_name_by_id(node->node->join_node_->node_to_join_) : "___");
+						  bgpquery->get_var_name_by_id(node->node->join_node_->node_to_join_) : "BJ");
 
 	degree.push_back(deg);
 }
 
 void PlanTree::plan_to_string(BGPQuery* bgpquery, sparqlWithPlan *sparql_struct) {
-	vector<int> node_id = sparql_struct->node_id;
-	vector<int> degree = sparql_struct->node_degree;
-	vector<string> node_string = sparql_struct->varible_node;
+	vector<int> &node_id = sparql_struct->node_id;
+	vector<int> &degree = sparql_struct->node_degree;
+	vector<string> &node_string = sparql_struct->varible_node;
 	node_to_string(bgpquery, this->root_node, node_id, node_string, degree);
 
 	// string plan_str = "";

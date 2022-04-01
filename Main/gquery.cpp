@@ -130,7 +130,60 @@ main(int argc, char * argv[])
 				shared_ptr<Transaction> ptxn = make_shared<Transaction>(db_folder, 1, 1);
 				//cout << ptxn << endl;
 				sparqlWithPlan* sparql_struct = new sparqlWithPlan;
-				int ret = _db.query(query, _rs, ofp, true, false, nullptr);
+
+				// note: to use this example, please use the ./date/lubm/lubm.nt, and change the 13-th line to:
+				// <http://www.Department0.University0.edu/FullProfessor0>	<ub:doctoralDegreeFrom>	<http://www.University0.edu>.
+				// to get one result, else this query has empty result
+				_db.sparql_struct = sparql_struct;
+				string query_string = "SELECT ?student ?university WHERE\n"
+									  "{?professor <rdf:type> <ub:FullProfessor>.\n"
+									  "?university <rdf:type> <ub:University>.\n"
+									  "?student <rdf:type> <ub:GraduateStudent>.\n"
+									  "?department <rdf:type> <ub:Department>.\n"
+									  "?course <rdf:type> <ub:Course>.\n"
+									  "?professor <ub:doctoralDegreeFrom> ?university.\n"
+									  "?professor <ub:teacherOf> ?course.\n"
+									  "?student <ub:teachingAssistantOf> ?course.\n"
+									  "?student <ub:memberOf> ?department.\n"
+									  "?department <ub:subOrganizationOf> ?university.\n"
+									  "}";
+
+				sparql_struct->sparql_query = query_string;
+
+				// feed one pure WCO plan
+				// sparql_struct->varible_node = vector<string>{"?university", "?department", "?professor",
+				// 								"?student", "?course"};
+				// sparql_struct->node_degree = vector<int>{0,1,1,1,1};
+
+				// feed one hybrid plan
+				// sparql_struct->varible_node = vector<string>{"?university", "?department", "?professor",
+				// 											 "?department", "?student", "?course", "?professor", "BJ"};
+				// sparql_struct->node_degree = vector<int>{0,1,1,0,1,1,1,2};
+
+				// get one plan from optimizer
+
+				// int ret = _db.query(query, _rs, ofp, true, false, nullptr);
+				int ret = _db.query(sparql_struct->sparql_query, _rs, ofp, true, false, nullptr);
+
+				auto varible_node = sparql_struct->varible_node;
+				auto node_degree = sparql_struct->node_degree;
+
+				for(int i = 0; i < 50; ++ i)
+					printf("-");
+				cout << endl;
+
+				for(unsigned i = 0; i < varible_node.size(); ++i)
+					cout << varible_node[i] << " ";
+				cout << endl;
+
+				for(unsigned i = 0; i < node_degree.size(); ++i)
+					cout << node_degree[i] << " ";
+				cout << endl;
+
+				for(int i = 0; i < 50; ++ i)
+					printf("-");
+				cout << endl;
+
 				if (resultfile.empty() == false)
 				{
 					fclose(ofp);
